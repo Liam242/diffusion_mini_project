@@ -152,4 +152,4 @@ function diffusion_sliders
     end
 end
 
-diffusion_sliders;
+diffusion_sliders

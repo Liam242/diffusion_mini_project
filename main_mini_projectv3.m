@@ -96,48 +96,6 @@ title(sprintf('Constant Source Diffusion: Numerical vs. erfc at t = %.3g s', T))
 legend('Location','best');
 hold off;
 
-%% With equation
-% Physics / scheme parameters (set dx, D, dt OR just set r directly)
-dx = 1e-7;          % [m] grid spacing (example)
-D  = 1e-14;         % [m^2/s] diffusivity (example)
-dt = 0.5 * dx^2 / D; % choose dt to make r = 0.5 (stability limit)
-r  = D*dt/dx^2;     % diffusion number (should be <= 0.5)
-
-Cs = 2e19;          % surface concentration
-% ----------------
-
-C_vectorCSD = C_vector;         % assumes C_vector(1,1:2) already set to Cs
-C_vectorCSD(1,1:2) = [Cs Cs];   % enforce BC at t=0
-
-for i = 2:iterations
-    Cprev = C_vectorCSD(i-1, :);
-    Cnew  = Cprev;  % start from previous
-
-    % Interior nodes (skip fixed Dirichlet nodes 1:2, and last node N for now)
-    for j = 3:(depth_size-1)
-        Cnew(j) = Cprev(j) + r*( Cprev(j-1) - 2*Cprev(j) + Cprev(j+1) );
-    end
-
-    % Left boundary: keep first two nodes fixed (Dirichlet)
-    Cnew(1:2) = [Cs Cs];
-
-    % Right boundary: zero-flux (Neumann) -> use C_{N+1}=C_{N-1}
-    j = depth_size;
-    Cnew(j) = Cprev(j) + r*( Cprev(j-1) - 2*Cprev(j) + Cprev(j-1) ); % = Cprev(j)+2r*(C_{N-1}-C_N)
-
-    % Store this time slice
-    C_vectorCSD(i, :) = Cnew;
-end
-
-% Plot final profile
-plot(C_vectorCSD(end, :), 'LineWidth', 3);
-xlabel('Depth index');
-ylabel('Concentration');
-title(sprintf('Constant Source Diffusion With a Stability Limit of 0.5', r));
-grid on;
-
-
-
  %% LOg version
 % C_vectorCSD = C_vector;
 % 
