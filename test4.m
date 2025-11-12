@@ -1,0 +1,155 @@
+csd_total=0;
+did_total=0;
+
+function diffusion_sliders
+    % Initial Value
+    clear; clc; close all;
+    iterationsCSD = 800;
+    iterationsDID = 1000;
+    depth_size    = 100;
+    surface_concentration = [2e19 2e19];  % fixed surface concentration
+
+    % Initial slider values
+    aCSD = 0.5;   % for constant source diffusion
+    aDID = 0.5;   % for drive-in diffusion
+
+    % Shared variable for DID initial profile (from infinite CSD)
+    CSD_for_DID = [];
+
+    %% ========== FIGURE 1: CONSTANT SOURCE DIFFUSION ======================
+    figCSD = figure('Name','Constant Source Diffusion', ...
+                 'NumberTitle','off', ...
+                 'Position',[300 300 800 500]);
+
+    [C_finite, C_infinite] = computeCSD(aCSD);
+    CSD_for_DID = C_infinite;
+
+    ax1 = axes('Parent', figCSD, 'Position', [0.1 0.25 0.85 0.7]);
+    hFinite   = plot(ax1, C_finite, 'LineWidth', 1.8); hold(ax1,'on');
+    hInfinite = plot(ax1, C_infinite, '--', 'LineWidth', 1.8);
+    grid(ax1,'on');
+    xlabel(ax1,'Depth index');
+    ylabel(ax1,'Concentration');
+    title(ax1, sprintf('Constant Source Diffusion (aCSD = %.3f)', aCSD));
+    legend(ax1, 'Finite depth', 'Infinite depth', 'Location', 'northeast');
+
+    % Slider below the graph
+    sldCSD = uicontrol('Parent', figCSD, 'Style', 'slider', ...
+        'Units', 'normalized', ...
+        'Position', [0.15 0.08 0.7 0.05], ...
+        'Min', 0, 'Max', 1, 'Value', aCSD, ...
+        'Callback', @updateCSDCallback);
+
+    uicontrol('Parent', figCSD, 'Style', 'text', ...
+        'Units', 'normalized', ...
+        'Position', [0.15 0.02 0.7 0.05], ...
+        'String', 'aCSD (Constant Source Diffusion)', ...
+        'HorizontalAlignment', 'center', 'FontSize', 10);
+
+    %% ========== FIGURE 2: DRIVE-IN DIFFUSION ============================
+    figDID = figure('Name','Drive-In Diffusion', ...
+                 'NumberTitle','off', ...
+                 'Position',[1150 300 800 500]);
+
+    C_DID = computeDID(aDID, CSD_for_DID);
+    ax2 = axes('Parent', figDID, 'Position', [0.1 0.25 0.85 0.7]);
+    hDID  = plot(ax2, C_DID, 'LineWidth', 1.8);
+    grid(ax2,'on');
+    xlabel(ax2,'Depth index');
+    ylabel(ax2,'Concentration');
+    title(ax2, sprintf('Drive-In Diffusion (aDID = %.3f)', aDID));
+
+    sldDID = uicontrol('Parent', figDID, 'Style', 'slider', ...
+        'Units', 'normalized', ...
+        'Position', [0.15 0.08 0.7 0.05], ...
+        'Min', 0, 'Max', 1, 'Value', aDID, ...
+        'Callback', @updateDIDCallback);
+
+    uicontrol('Parent', figDID, 'Style', 'text', ...
+        'Units', 'normalized', ...
+        'Position', [0.15 0.02 0.7 0.05], ...
+        'String', 'aDID (Drive-In Diffusion)', ...
+        'HorizontalAlignment', 'center', 'FontSize', 10);
+
+    %% Main Function
+
+    function [C_finite_end, C_infinite_end] = computeCSD(a)
+        % Compute finite-depth CSD
+        C_vector = zeros(iterationsCSD, depth_size);
+        C_vector(1,1:2) = surface_concentration;
+        C_vectorCSDfin = C_vector;
+        for i = 2:iterationsCSD
+            for j = 2:depth_size
+                if j == depth_size
+                    C_vectorCSDfin(i,j) = a*(C_vectorCSDfin(i-1,j) + C_vectorCSDfin(i-1,j-1));
+                else
+                    C_vectorCSDfin(i,j) = a*(C_vectorCSDfin(i-1,j-1) + C_vectorCSDfin(i-1,j+1));
+                end
+            end
+            C_vectorCSDfin(i,1:2) = surface_concentration;
+        end
+        C_finite_end = C_vectorCSDfin(end,:);
+
+        % Compute "infinite" CSD
+        C_vectorCSDinf = C_vector;
+        for i = 2:iterationsCSD
+            for j = 2:depth_size
+                if j == depth_size
+                    C_vectorCSDinf(i,j) = a*(C_vectorCSDinf(i-1,j-1));
+                else
+                    C_vectorCSDinf(i,j) = a*(C_vectorCSDinf(i-1,j-1) + C_vectorCSDinf(i-1,j+1));
+                end
+            end
+            C_vectorCSDinf(i,1:2) = surface_concentration;
+        end
+        C_infinite_end = C_vectorCSDinf(end,:);
+        csd_total=sum(C_vectorCSDinf(end,:))
+    end
+
+    function C_end = computeDID(a, C_init)
+        % Drive-in diffusion starting from C_init
+        C_vectorDID = zeros(iterationsDID, depth_size);
+        C_vectorDID(1,:) = C_init;
+        for i = 2:iterationsDID
+            for j = 1:depth_size
+                if j == depth_size
+                    C_vectorDID(i,j) = a*(C_vectorDID(i-1,j) + C_vectorDID(i-1,j-1));
+                elseif j == 1
+                    C_vectorDID(i,j) = a*(C_vectorDID(i-1,j) + C_vectorDID(i-1,j+1));
+                else
+                    C_vectorDID(i,j) = a*(C_vectorDID(i-1,j-1) + C_vectorDID(i-1,j+1));
+                end
+            end
+        end
+        C_end = C_vectorDID(end,:);
+        did_total=sum(C_vectorDID(end, :))
+    end
+
+    function updateCSDCallback(src, ~)
+        aCSD = src.Value;
+        [C_finite, C_infinite] = computeCSD(aCSD);
+        CSD_for_DID = C_infinite;  % update DID starting profile
+
+        set(hFinite,   'YData', C_finite);
+        set(hInfinite, 'YData', C_infinite);
+        title(ax1, sprintf('Constant Source Diffusion (aCSD = %.3f)', aCSD));
+
+        % Also update DID figure to stay consistent
+        if isvalid(hDID)
+            C_DID = computeDID(aDID, CSD_for_DID);
+            set(hDID, 'YData', C_DID);
+            title(ax2, sprintf('Drive-In Diffusion (aDID = %.3f)', aDID));
+        end
+        drawnow;
+    end
+
+    function updateDIDCallback(src, ~)
+        aDID = src.Value;
+        C_DID = computeDID(aDID, CSD_for_DID);
+        set(hDID, 'YData', C_DID);
+        title(ax2, sprintf('Drive-In Diffusion (aDID = %.3f)', aDID));
+        drawnow;
+    end
+end
+
+diffusion_sliders;
