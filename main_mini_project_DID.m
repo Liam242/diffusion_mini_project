@@ -1,0 +1,218 @@
+%% Initialization
+% Constant Source Diffusion
+% We make DΔt/(Δx^2)=1/2
+% T=1200K
+% R=1.987 (Universal Gas Constant)
+%D=5.275027924x10^-19m^2/s
+% Δt= 947867.2988 s
+% Δx = 1x10^6 m
+D=5.275027924e-19;
+deltaT = 9478.672988; % Time step
+deltaX = 1e-7; % Spatial step
+
+% D cant' change aslong as temp doesn't change, but what we can 
+%change is the time step. And make it more accurate
+% Not that deltaT is initially wrong, just that whe want it to be exactly
+% 0.5
+deltaT= (0.5*(deltaX^2))/(D);
+
+a=(D*deltaT)/(deltaX^2);
+% a=0.5;
+
+%% Getting the CSD
+
+iterations=800;
+depth_size=100;
+C_vector = zeros(iterations,depth_size);
+C_vector(1,1:2) = [2e19 2e19];
+
+C_vectorCSD=C_vector;
+for i = 2:iterations
+    for j = 2:depth_size 
+
+        if j==depth_size
+            C_vectorCSD(i,j)=a*(C_vectorCSD(i-1,j-1));
+        else
+            C_vectorCSD(i,j)=a*(C_vectorCSD(i-1,j-1)+C_vectorCSD(i-1,j+1));
+        end
+    end
+    C_vectorCSD(i,1:2)=[2e19 2e19];
+
+
+end
+figure; 
+hold on; 
+grid on;
+x=(0:depth_size-1)*deltaX;
+plot(x, C_vectorCSD(end,:), 'LineWidth', 3);
+xlabel('Depth (m)');
+ylabel('Concentration (cm^-3)');
+title('Constant Source Diffusion Profile at 1200 K');
+grid off;
+
+fprintf("Constant Source Diffusion Time Taken = %.3e s\n", (iterations * deltaT)/(3600*24));
+
+%% Answering Question 4-5
+
+iterations=1000;
+C_vectorDID=zeros(iterations,depth_size);
+C_vectorDID(1, :)=C_vectorCSD(end, :);
+
+for i = 2:iterations
+
+    for j = 1:depth_size %size of array -1
+
+
+
+
+
+        if j==depth_size
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j-1));
+        elseif j==1
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j+1));
+        else
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j-1)+C_vectorDID(i-1,j+1));
+        end
+    end
+
+
+
+end
+
+figure;
+hold on; 
+grid on;
+x=(0:depth_size-1)*deltaX;
+plot(x,C_vectorDID(end, :),'LineWidth', 3);
+xlabel('Depth (m)');
+ylabel('Concentration (cm^-3)');
+title('Constant Source Diffusion Profile at 1200 K');
+grid off;
+
+fprintf("Constant Source Diffusion Time Taken = %.3e s\n", (iterations * deltaT)/(3600*24));
+
+%% Answering Question 6
+
+iterations=1000;
+C_vectorDID=zeros(iterations,depth_size);
+C_vectorDID(1, :)=C_vectorCSD(end, :);
+
+for i = 2:iterations
+
+    for j = 1:depth_size %size of array -1
+
+
+
+
+
+        if j==depth_size
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j-1));
+        elseif j==1
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j+1));
+        else
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j-1)+C_vectorDID(i-1,j+1));
+        end
+    end
+
+
+
+end
+
+figure;
+hold on; 
+grid on;
+x=(0:depth_size-1)*deltaX;
+plot(x,C_vectorDID(end, :),'LineWidth', 3);
+
+
+% Choose centre of the Gaussian (here: middle of the domain)
+mu = 0;
+
+% Choose a width (standard deviation). Adjust this to match your profile.
+sigma = (max(x) - min(x))/2.5;  
+
+% Build Gaussian on same x-grid
+G = gaussmf(x, [sigma mu]);
+
+% Scale Gaussian to have the same maximum as the numerical solution
+G = G .* max(C_vectorDID(end, :));
+
+% Plot Gaussian
+plot(x, G, '--r', 'LineWidth', 2);
+
+legend('Numerical diffusion', 'Gaussian fit', 'Location', 'best');
+
+xlabel('Depth (m)');
+ylabel('Concentration (cm^-3)');
+title('Constant Source Diffusion Profile at 1200 K');
+grid off;
+
+fprintf("Constant Source Diffusion Time Taken = %.3e s\n", (iterations * deltaT)/(3600*24));
+
+
+%% Answering Question 7
+
+iterations=1000;
+C_vectorDID=zeros(iterations,depth_size);
+C_vectorDID(1, :)=C_vectorCSD(end, :);
+
+for i = 2:iterations
+
+    for j = 1:depth_size %size of array -1
+
+
+
+
+
+        if j==depth_size
+            C_vectorDID(i,j)= C_vectorDID(i,j)+a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j-1)-2* C_vectorDID(i,j));
+        elseif j==1
+            C_vectorDID(i,j)=C_vectorDID(i,j)+a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j+1)-2* C_vectorDID(i,j)-2* C_vectorDID(i,j));
+        else
+            C_vectorDID(i,j)=C_vectorDID(i,j)+a*(C_vectorDID(i-1,j-1)+C_vectorDID(i-1,j+1)-2* C_vectorDID(i,j)-2* C_vectorDID(i,j));
+        end
+    end
+
+
+
+end
+
+figure;
+hold on; 
+grid on;
+x=(0:depth_size-1)*deltaX;
+plot(x,C_vectorDID(end, :),'LineWidth', 3,'DisplayName', 'Equation 7.40');
+
+iterations=1000;
+C_vectorDID=zeros(iterations,depth_size);
+C_vectorDID(1, :)=C_vectorCSD(end, :);
+
+for i = 2:iterations
+
+    for j = 1:depth_size %size of array -1
+
+
+
+
+
+        if j==depth_size
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j-1));
+        elseif j==1
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j)+C_vectorDID(i-1,j+1));
+        else
+            C_vectorDID(i,j)=a*(C_vectorDID(i-1,j-1)+C_vectorDID(i-1,j+1));
+        end
+    end
+
+
+
+end
+
+plot(x, C_vectorDID(end, :),'--', 'LineWidth', 2, 'DisplayName', 'Equation 7.38');
+xlabel('Depth (m)');
+ylabel('Concentration (cm^-3)');
+title('Constant Source Diffusion Profile at 1200 K');
+legend('show', 'Location', 'northeast')
+grid off;
+
+fprintf("Constant Source Diffusion Time Taken = %.3e s\n", (iterations * deltaT)/(3600*24));
